@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fraud Risk Assessment · Craig Mann, CCA, CCP, CFE, PMP</title>
+<style>
+  :root{
+    --navy:#14343f; --navy2:#0f2831;
+    --teal:#2c6f7e; --teald:#1f5966; --teall:#6ba3ad;
+    --orange:#d1632b; --oranged:#b64a1f; --rust:#a83e26; --gold:#e8a11f;
+    --paper:#ffffff; --card:#f4eee1; --peach:#fdf1e6; --peachb:#e9a05a;
+    --ink:#1a1712; --muted:#4f473d; --line:#ddd6c6;
+    --pageW:500px; --pageH:684px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:'Helvetica Neue',Arial,'Liberation Sans',sans-serif; color:var(--ink);
+    background:radial-gradient(1200px 560px at 50% -8%, rgba(209,99,43,.10), transparent 60%),
+      radial-gradient(circle at 50% 40%,#2a3a42 0%,#1b262c 55%,#121a1f 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;overflow-x:hidden;
+  }
+  .stage{display:flex;flex-direction:column;align-items:center;gap:15px;}
+  .scaler{transform-origin:top center;}
+  .book{transition:transform .85s cubic-bezier(.42,.12,.18,1);}
+  .book.closed{transform:translateX(25%);}
+  .book.single{transform:translateX(25%);}
+  .book.single .side.right{opacity:0;}
+  .book.single::after{display:none;}
+  .book.closed::after{display:none;}
+  .side.right{transition:opacity .5s ease .2s;}
+  .book.closed .side.right{opacity:0;}
+  .book.closed .side.left{border-radius:6px;
+    box-shadow:inset -10px 0 20px -14px rgba(0,0,0,.45), 7px 0 0 -2px #e9e2d1, 12px 0 0 -3px #ddd4c0, 16px 0 0 -4px #d2c9b4;}
+  .book{position:relative;width:calc(var(--pageW)*2);height:var(--pageH);perspective:3000px;filter:drop-shadow(0 22px 42px rgba(0,0,0,.5));}
+  .book::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:30px;transform:translateX(-50%);
+    background:linear-gradient(90deg,rgba(0,0,0,.16),rgba(0,0,0,0) 45%,rgba(0,0,0,0) 55%,rgba(0,0,0,.16));z-index:30;pointer-events:none;}
+  .side{position:absolute;top:0;width:var(--pageW);height:var(--pageH);overflow:hidden;background:var(--paper);border:1px solid var(--line);}
+  .side.left{left:0;border-radius:5px 0 0 5px;box-shadow:inset -12px 0 24px -20px rgba(0,0,0,.5);}
+  .side.right{left:var(--pageW);border-radius:0 5px 5px 0;box-shadow:inset 12px 0 24px -20px rgba(0,0,0,.5);}
+  .flipper{position:absolute;top:0;width:var(--pageW);height:var(--pageH);transform-style:preserve-3d;
+    transition:transform .95s cubic-bezier(.42,.12,.18,1);z-index:40;display:none;}
+  .fface{position:absolute;inset:0;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--paper);border:1px solid var(--line);}
+  .fface.fb{transform:rotateY(180deg);}
+  .fface .shine{position:absolute;inset:0;pointer-events:none;opacity:0;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,0) 55%);}
+  .flipper.turning .ff .shine{animation:gl .95s ease;}
+  .flipper.turning .fb .shine{animation:gl2 .95s ease;}
+  @keyframes gl{0%{opacity:0}50%{opacity:.45}100%{opacity:0}}
+  @keyframes gl2{0%{opacity:.4}55%{opacity:.16}100%{opacity:0}}
+  /* page frame */
+  .pg{width:100%;height:100%;display:flex;flex-direction:column;padding:30px 32px 20px;}
+  .kick{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--orange);font-weight:bold;margin-bottom:5px;padding-right:78px;}
+  .tocbtn{position:absolute;top:11px;right:13px;z-index:6;background:var(--navy);color:#fff;border:none;font-family:inherit;font-size:8px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px 5px 8px;border-radius:20px;cursor:pointer;opacity:.9;transition:.15s;box-shadow:0 2px 6px rgba(0,0,0,.25);}
+  .tocbtn:hover{opacity:1;background:var(--orange);transform:translateY(-1px);}
+  .tocwrap{display:flex;gap:15px;margin-top:2px;}
+  .toccol{flex:1;min-width:0;}
+  .tocpart{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);font-weight:800;margin:5px 0 6px;border-bottom:1px solid var(--line);padding-bottom:4px;}
+  .tocrow{display:flex;align-items:center;gap:7px;padding:3.5px 5px;border-radius:4px;cursor:pointer;text-decoration:none;transition:background .15s;}
+  .tocrow:hover{background:var(--peach);}
+  .tocn{font-size:8.5px;font-weight:800;color:var(--orange);flex:0 0 16px;}
+  .toct{font-size:9.7px;color:#1c1a15;font-weight:500;flex:1;line-height:1.2;}
+  .tocrow:hover .toct{color:var(--navy);}
+  .tocc{font-size:12px;color:var(--teall);flex:0 0 auto;font-weight:bold;}
+  .tocrow:hover .tocc{color:var(--orange);}
+  .ttl{font-size:22px;line-height:1.14;margin:0;color:var(--navy);font-weight:800;letter-spacing:-.2px;white-space:nowrap;}
+  .subttl{font-size:12.5px;color:var(--muted);margin-top:4px;}
+  .rule{height:3px;background:var(--orange);margin:11px 0 15px;border-radius:2px;}
+  .rule.teal{background:var(--teal);}
+  .pg p{font-size:13px;line-height:1.55;margin:0 0 9px;color:#1c1a15;font-weight:450;}
+  .pg p b{color:var(--navy);font-weight:800;}
+  .foot{display:flex;align-items:center;gap:10px;font-size:8.5px;color:var(--muted);
+    letter-spacing:.02em;padding-top:9px;margin-top:auto;border-top:1px solid var(--line);}
+  .foot .fl{flex:0 0 auto;}
+  .foot .fc{flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .foot .fr{flex:0 0 auto;font-weight:bold;color:#4a4740;}
+  .src{font-size:9.5px;color:var(--muted);font-style:italic;margin-top:8px;line-height:1.4;}
+  .callout{background:var(--peach);border-left:4px solid var(--orange);padding:10px 13px;border-radius:0 4px 4px 0;font-size:11.7px;line-height:1.46;color:#201c15;margin-top:10px;font-weight:450;}
+  .callout .ch{font-weight:bold;color:var(--oranged);display:block;margin-bottom:3px;font-size:11.5px;}
+  .callout.navy{background:var(--navy);border-left-color:var(--orange);color:#e8eef0;}
+  .callout.navy .ch{color:var(--gold);}
+  /* stats */
+  .stats{display:flex;gap:10px;margin:4px 0 6px;}
+  .stat{flex:1;background:var(--card);border-radius:5px;padding:14px 8px 12px;text-align:center;position:relative;overflow:hidden;}
+  .stat .bar{position:absolute;top:0;left:0;right:0;height:5px;}
+  .stat .num{font-size:23px;font-weight:800;letter-spacing:-.5px;white-space:nowrap;}
+  .stats.five .stat{padding:13px 4px 11px;}
+  .stats.five .num{font-size:17px;letter-spacing:-.4px;}
+  .stats.five .lbl{font-size:8.5px;}
+  .stat .lbl{font-size:9.5px;color:#2b2822;margin-top:5px;line-height:1.25;text-transform:uppercase;letter-spacing:.03em;font-weight:600;}
+  .stat .s{font-size:8px;color:#57514a;margin-top:6px;font-style:italic;}
+  /* bars (horizontal) */
+  .hbars{margin-top:6px;}
+  .hbar{display:flex;align-items:center;margin:7px 0;font-size:11.5px;}
+  .hbar .hl{width:150px;flex:0 0 150px;text-align:right;padding-right:10px;color:#1c1a15;font-weight:600;}
+  .hbar .ht{flex:1;height:20px;background:#eee7d8;border-radius:3px;overflow:hidden;}
+  .hbar .hf{height:100%;border-radius:3px;}
+  .hbar .hv{width:40px;flex:0 0 40px;padding-left:8px;font-weight:bold;color:var(--navy);}
+  /* funnel */
+  .funnel{display:flex;gap:2px;margin:10px 0;}
+  .fseg{flex:1;min-width:0;color:#fff;padding:16px 7px 16px 13px;clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%);}
+  .fseg:first-child{clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);}
+  .fseg:last-child{clip-path:polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%);padding-right:11px;}
+  .fseg .ft{font-weight:800;font-size:8.7px;letter-spacing:0;text-transform:uppercase;line-height:1.14;}
+  .fseg .fd{font-size:8px;margin-top:5px;opacity:1;line-height:1.2;}
+  /* methods */
+  .methods{display:flex;justify-content:space-between;align-items:flex-start;margin:14px 0;position:relative;}
+  .mstep{flex:1;text-align:center;position:relative;z-index:2;}
+  .mcirc{width:42px;height:42px;border-radius:50%;color:#fff;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center;margin:0 auto 7px;}
+  .mstep .mt{font-size:11px;font-weight:bold;color:var(--navy);}
+  .mstep .md{font-size:9px;color:var(--muted);margin-top:2px;}
+  .mline{position:absolute;top:21px;left:12%;right:12%;height:2px;background:var(--line);z-index:1;}
+  /* grid cards */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:4px;}
+  .gcard{border-top:3px solid var(--teal);background:#faf7f0;padding:9px 11px;border-radius:0 0 4px 4px;}
+  .gcard:nth-child(even){border-top-color:var(--orange);}
+  .gcard h4{margin:0 0 4px;font-size:11.5px;color:var(--navy);}
+  .gcard p{font-size:10.2px;line-height:1.38;margin:0;color:#211e18;font-weight:450;}
+  /* 3 cols */
+  .cols3{display:flex;gap:10px;margin-top:6px;}
+  .col{flex:1;background:#faf7f0;border-top:3px solid var(--orange);padding:11px;border-radius:0 0 4px 4px;}
+  .col h4{margin:0 0 5px;font-size:12px;color:var(--navy);}
+  .col p{font-size:10.5px;line-height:1.42;margin:0;color:#211e18;font-weight:450;}
+  /* tables */
+  table.t{width:100%;border-collapse:collapse;font-size:10px;margin-top:4px;}
+  table.t th{background:var(--navy);color:#fff;text-align:left;padding:6px 7px;font-size:9.5px;font-weight:bold;}
+  table.t td{padding:5px 7px;border-bottom:1px solid #eae3d3;vertical-align:top;line-height:1.32;color:#1a1712;font-weight:450;}
+  table.t tr:nth-child(even) td{background:#faf7f0;}
+  .rc{color:#fff;font-weight:800;text-align:center;border-radius:3px;padding:2px 0;font-size:11px;}
+  .pill{color:#fff;font-weight:bold;text-align:center;border-radius:3px;padding:2px 4px;font-size:9px;display:inline-block;min-width:56px;}
+  /* dashboard */
+  .dash{margin-top:6px;}
+  .drow{display:flex;align-items:center;margin:6px 0;font-size:10.5px;}
+  .drow .dl{width:196px;flex:0 0 196px;color:#1c1a15;padding-right:8px;line-height:1.2;font-weight:500;}
+  .drow .dt{flex:1;height:11px;background:#ece5d6;border-radius:6px;overflow:hidden;}
+  .drow .df{height:100%;border-radius:6px;}
+  .drow .dr{width:74px;flex:0 0 74px;text-align:right;font-weight:800;font-size:9px;}
+  /* hours vertical chart */
+  .vchart{display:flex;align-items:flex-end;justify-content:space-around;height:190px;gap:8px;margin:10px 0 4px;border-bottom:2px solid var(--line);padding:0 4px;}
+  .vbar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+  .vbar .vv{font-size:10.5px;font-weight:800;color:var(--navy);margin-bottom:4px;}
+  .vbar .vb{width:80%;border-radius:3px 3px 0 0;}
+  .vbar .vl{font-size:9.3px;color:#171511;font-weight:600;margin-top:7px;text-align:center;line-height:1.22;}
+  /* two column compare */
+  .twocol{display:flex;gap:10px;margin-top:4px;}
+  .tcbox{flex:1;border:1px solid var(--line);border-radius:5px;overflow:hidden;}
+  .tcbox .tch{padding:8px 10px;font-weight:bold;font-size:11px;color:#fff;}
+  .tcbox ul{margin:0;padding:9px 11px 9px 24px;}
+  .tcbox li{font-size:9.8px;line-height:1.42;margin-bottom:5px;color:#201d17;font-weight:450;}
+  /* triangle */
+  .tri2{margin-top:2px;}
+  .tri2 svg{display:block;margin:0 auto 12px;}
+  .trirow{display:flex;gap:9px;}
+  .trirow .trb{flex:1;}
+  .trb{padding:9px 10px 10px;border-radius:0 0 4px 4px;font-size:9.6px;line-height:1.42;color:#201d17;font-weight:450;}
+  .trb .th{font-weight:800;font-size:10.5px;display:block;margin-bottom:3px;}
+  /* cover */
+  .cover{width:100%;height:100%;background:linear-gradient(160deg,#1a4250 0%,#123039 55%,#0c222a 100%);color:#eef3f4;display:flex;flex-direction:column;padding:0;position:relative;overflow:hidden;}
+  .cover .halo{position:absolute;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(209,99,43,.35),transparent 70%);top:-120px;right:-110px;}
+  .cover .halo2{position:absolute;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(44,111,126,.4),transparent 70%);bottom:-70px;left:-60px;}
+  .cbar{height:8px;background:var(--orange);}
+  .chead{padding:26px 34px 0;position:relative;z-index:2;}
+  .chead .nm{font-size:18.5px;font-weight:800;letter-spacing:.02em;color:#fff;}
+  .chead .cr{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-top:3px;}
+  .chead .ad{font-size:11.5px;color:#eef3f4;font-style:italic;font-weight:800;margin-top:4px;}
+  .cmid{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 34px;position:relative;z-index:2;}
+  .cmid .keyw{display:block;width:400px;max-width:100%;box-sizing:border-box;text-align:center;margin:0 auto 22px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--gold);background:rgba(232,161,31,.13);border:1px solid rgba(232,161,31,.5);padding:6px 14px;border-radius:20px;white-space:nowrap;}
+  .cmid h1{font-family:Georgia,'Times New Roman',serif;font-size:56px;line-height:1.08;margin:0;color:var(--gold);font-weight:700;letter-spacing:-.3px;}
+  .cmid .lead{font-size:16px;color:#dde8ea;margin-top:26px;max-width:420px;line-height:1.55;}
+  .cmid .tags{display:flex;gap:10px;margin-top:30px;}
+  .cmid .tag{flex:1;text-align:center;white-space:nowrap;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);background:rgba(232,161,31,.13);border:1px solid rgba(232,161,31,.5);padding:9px 10px;border-radius:20px;}
+  .cfoot{padding:0 34px 30px;position:relative;z-index:2;}
+  .cfoot .line{height:1px;background:rgba(232,161,31,.4);margin-bottom:12px;}
+  .cfoot .ct{font-size:10.5px;color:#cdd9db;line-height:1.7;}
+  .cfoot .ct b{color:#fff;}
+  /* CTA / back */
+  .cta{width:100%;height:100%;background:linear-gradient(160deg,#123039 0%,#0c222a 100%);color:#dfe8ea;display:flex;flex-direction:column;padding:34px;position:relative;overflow:hidden;}
+  .cta .halo{position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(209,99,43,.25),transparent 70%);bottom:-120px;right:-90px;}
+  .cta h2{font-size:24px;color:#fff;margin:0 0 4px;font-weight:800;position:relative;z-index:2;}
+  .cta .mv{font-size:11px;color:var(--gold);margin-bottom:14px;position:relative;z-index:2;}
+  .cta p{font-size:11.7px;color:#dae5e7;line-height:1.5;position:relative;z-index:2;}
+  .cta .contact{margin-top:16px;position:relative;z-index:2;}
+  .cta .contact .nm{font-size:15px;font-weight:800;color:#fff;}
+  .cta .contact .cr{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin:3px 0 9px;}
+  .cta .contact .row{font-size:11px;color:#d7e2e4;margin:3px 0;}
+  .cta .contact .row b{color:var(--gold);font-weight:normal;margin-right:6px;}
+  .cta a{color:var(--gold);text-decoration:none;}
+  .cta a:hover{text-decoration:underline;}
+  .cover a{color:inherit;text-decoration:none;}
+  .cover a:hover{text-decoration:underline;}
+  .cta a.cbtn{display:inline-block;margin-top:14px;background:var(--orange);color:#fff;font-weight:bold;font-size:12px;padding:11px 22px;border-radius:5px;letter-spacing:.03em;text-decoration:none;transition:.2s;}
+  .cta a.cbtn:hover{background:#b64a1f;text-decoration:none;}
+  .cta .disc{margin-top:auto;font-size:8.3px;color:#8ea3a7;line-height:1.4;border:1px solid rgba(232,161,31,.3);border-radius:4px;padding:9px 11px;position:relative;z-index:2;}
+  .cta .disc b{color:#c9b47a;}
+  /* controls */
+  .progress{width:min(920px,92vw);height:4px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;}
+  .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--orange));transition:width .5s ease;}
+  .controls{display:flex;align-items:center;gap:16px;}
+  .btn{background:rgba(255,255,255,.07);border:1px solid rgba(232,161,31,.5);color:#eef3f4;font-family:inherit;font-size:14px;padding:8px 20px;border-radius:26px;cursor:pointer;transition:.2s;letter-spacing:.02em;}
+  .btn:hover:not(:disabled){background:rgba(209,99,43,.28);transform:translateY(-1px);}
+  .btn:disabled{opacity:.3;cursor:default;}
+  .counter{font-size:12px;letter-spacing:.1em;min-width:170px;text-align:center;color:#bfcbce;}
+  .hint{font-size:11px;color:#8ea3a7;letter-spacing:.04em;}
+  .progress,.controls,.hint{position:relative;z-index:10;}  /* -- view-only deterrents (CSS layer) -- */
+  html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  img{-webkit-user-drag:none;user-drag:none;pointer-events:none;-webkit-touch-callout:none;}
+  @media print{ body *{display:none !important;} body::after{content:"This document is not available for printing."; display:block !important; font-family:Arial,sans-serif; font-size:16px; padding:40px; text-align:center;} }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="scaler" id="scaler">
+    <div class="book closed" id="book">
+      <div class="side left" id="leftPage"></div>
+      <div class="side right" id="rightPage"></div>
+      <div class="flipper" id="flipper">
+        <div class="fface ff" id="ff"><div class="shine"></div></div>
+        <div class="fface fb" id="fb"><div class="shine"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="progress"><i id="bar"></i></div>
+  <div class="controls">
+    <button class="btn" id="home">Front cover</button>
+    <button class="btn" id="prev">‹ Back</button>
+    <div class="counter" id="counter"></div>
+    <button class="btn" id="next">Next ›</button>
+    <button class="btn" id="end">Back cover</button>
+  </div>
+  <div class="hint">Click the cover to open · then click a page edge, use the buttons, or press ← / →</div>
+</div>
+
+<script>
+const NAVY='#14343f',TEAL='#2c6f7e',TEALL='#6ba3ad',ORANGE='#d1632b',RUST='#a83e26',GOLD='#e8a11f';
+const rateColor={Critical:'#a83e26','Critical Gap':'#a83e26',High:'#d1632b','Med-High':'#e8a11f','Medium-High':'#e8a11f',Medium:'#2c6f7e',Low:'#6ba3ad'};
+function heatColor(s){return s>=20?'#a83e26':s>=16?'#c85a2b':s>=12?'#d98a3f':s>=9?'#cbb96a':s>=5?'#7faaa0':'#3f7f8a';}
+
+/* ---------- components ---------- */
+function C_stats(rows){ // rows: array of arrays of cards
+  const sizeFor=(str,five)=>{ const base=five?17:23,len=(str||'').length;
+    if(len<=6) return base;
+    if(len<=8) return base-3;
+    if(len<=10) return base-6;
+    return Math.max(base-9,11); };
+  return rows.map(cards=>`<div class="stats${cards.length>=5?' five':''}">`+cards.map(c=>
+    `<div class="stat"><div class="bar" style="background:${c.color}"></div><div class="num" style="color:${c.color};font-size:${sizeFor(c.num,cards.length>=5)}px;">${c.num}</div><div class="lbl">${c.label}</div>${c.s?`<div class="s">${c.s}</div>`:''}</div>`).join('')+`</div>`).join('');
+}
+function C_hbars(items){
+  const max=Math.max(...items.map(i=>i.v));
+  return `<div class="hbars">`+items.map(i=>
+    `<div class="hbar"><div class="hl">${i.l}</div><div class="ht"><div class="hf" style="width:${(i.v/max*100).toFixed(0)}%;background:${i.c}"></div></div><div class="hv">${i.v}%</div></div>`).join('')+`</div>`;
+}
+function C_funnel(segs){
+  return `<div class="funnel">`+segs.map(s=>
+    `<div class="fseg" style="background:${s.c}"><div class="ft">${s.t}</div><div class="fd">${s.d}</div></div>`).join('')+`</div>`;
+}
+function C_methods(steps){
+  return `<div class="methods"><div class="mline"></div>`+steps.map(s=>
+    `<div class="mstep"><div class="mcirc" style="background:${s.c}">${s.n}</div><div class="mt">${s.t}</div><div class="md">${s.d}</div></div>`).join('')+`</div>`;
+}
+function C_grid(cards){
+  return `<div class="grid">`+cards.map(c=>`<div class="gcard"><h4>${c.h}</h4><p>${c.p}</p></div>`).join('')+`</div>`;
+}
+function C_cols3(cols){
+  return `<div class="cols3">`+cols.map(c=>`<div class="col"><h4>${c.h}</h4><p>${c.p}</p></div>`).join('')+`</div>`;
+}
+function C_table(o){
+  let h=`<table class="t"><thead><tr>`+o.head.map((x,i)=>`<th${o.w&&o.w[i]?` style="width:${o.w[i]}"`:''}>${x}</th>`).join('')+`</tr></thead><tbody>`;
+  o.rows.forEach(r=>{ h+='<tr>'+r.map((cell,i)=>{
+    if(o.scoreCol===i) return `<td><div class="rc" style="background:${heatColor(+cell)}">${cell}</div></td>`;
+    if(o.rateCol===i) return `<td><span class="pill" style="background:${rateColor[cell]||'#777'}">${cell}</span></td>`;
+    if(o.head[0]==='#'&&i===0) return `<td style="white-space:nowrap;">${cell}</td>`;
+    return `<td>${cell}</td>`; }).join('')+'</tr>'; });
+  return h+`</tbody></table>`;
+}
+function C_heat(){
+  const c=52,ox=70,oy=10;let cells='',yl='',xl='';
+  const marks={ '5,5':['R-01','R-02'],'4,5':['R-06'],'3,5':['R-03','R-08'],'3,4':['R-04','R-05','R-07'],'3,3':['R-10'],'2,4':['R-09'] };
+  for(let r=0;r<5;r++){const like=5-r;for(let k=0;k<5;k++){const imp=k+1,s=like*imp,x=ox+k*c,y=oy+r*c;
+    const key=like+','+imp,m=marks[key];
+    const cx=x+(c-3)/2;
+    let labels='';
+    if(m) m.forEach((code,mi)=>{ labels+=`<text x="${cx}" y="${y+28+mi*8}" text-anchor="middle" font-family="Arial" font-size="7" fill="#fff">${code}</text>`; });
+    cells+=`<rect x="${x}" y="${y}" width="${c-3}" height="${c-3}" rx="3" fill="${heatColor(s)}"/><text x="${cx}" y="${y+(m?17:26)}" text-anchor="middle" font-family="Arial" font-size="13" font-weight="bold" fill="#fff">${s}</text>${labels}`;}}
+  const yn=['Very High (5)','Med-High (4)','Medium (3)','Low-Med (2)','Low (1)'];
+  for(let r=0;r<5;r++) yl+=`<text x="${ox-6}" y="${oy+r*c+30}" text-anchor="end" font-family="Arial" font-size="8.5" fill="#555">${yn[r]}</text>`;
+  const xn=['Negligible','Minor','Moderate','Major','Severe'];
+  for(let k=0;k<5;k++) xl+=`<text x="${ox+k*c+(c-3)/2}" y="${oy+5*c+15}" text-anchor="middle" font-family="Arial" font-size="8.5" fill="#555">${xn[k]} (${k+1})</text>`;
+  return `<svg viewBox="0 0 340 300" width="360" style="display:block;margin:6px auto 0">${cells}${yl}${xl}
+    <text x="14" y="${oy+2.5*c}" text-anchor="middle" font-family="Arial" font-size="9" fill="#14343f" font-weight="bold" transform="rotate(-90 14 ${oy+2.5*c})">LIKELIHOOD</text>
+    <text x="${ox+2.5*c}" y="${oy+5*c+30}" text-anchor="middle" font-family="Arial" font-size="9" fill="#14343f" font-weight="bold">IMPACT</text></svg>`;
+}
+function C_dash(rows){
+  return `<div class="dash">`+rows.map(r=>
+    `<div class="drow"><div class="dl">${r.l}</div><div class="dt"><div class="df" style="width:${(r.s/25*100).toFixed(0)}%;background:${rateColor[r.r]||'#777'}"></div></div><div class="dr" style="color:${rateColor[r.r]||'#777'}">${r.r.toUpperCase()}</div></div>`).join('')+`</div>`;
+}
+function C_hours(bars){
+  const max=Math.max(...bars.map(b=>b.v));
+  return `<div class="vchart">`+bars.map(b=>
+    `<div class="vbar"><div class="vv">${b.t}</div><div class="vb" style="height:${(b.v/max*100).toFixed(0)}%;background:${b.c}"></div><div class="vl">${b.l}</div></div>`).join('')+`</div>`;
+}
+function C_twocol(a,b){
+  return `<div class="twocol">
+    <div class="tcbox"><div class="tch" style="background:${a.c}">${a.h}</div><ul>`+a.items.map(i=>`<li>${i}</li>`).join('')+`</ul></div>
+    <div class="tcbox"><div class="tch" style="background:${b.c}">${b.h}</div><ul>`+b.items.map(i=>`<li>${i}</li>`).join('')+`</ul></div></div>`;
+}
+function C_triangle(){
+  return `<div class="tri2">
+    <svg viewBox="0 0 440 220" width="430" role="img">
+      <polygon points="220,24 366,190 74,190" fill="#faf7f0" stroke="none"/>
+      <line x1="220" y1="24" x2="74" y2="190" stroke="${ORANGE}" stroke-width="5" stroke-linecap="round"/>
+      <line x1="220" y1="24" x2="366" y2="190" stroke="${GOLD}" stroke-width="5" stroke-linecap="round"/>
+      <line x1="74" y1="190" x2="366" y2="190" stroke="${TEAL}" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="220" cy="24" r="6" fill="#14343f"/>
+      <circle cx="74" cy="190" r="6" fill="${TEAL}"/>
+      <circle cx="366" cy="190" r="6" fill="${GOLD}"/>
+      <text x="220" y="150" text-anchor="middle" font-family="Arial" font-size="17" font-weight="800" fill="#14343f" letter-spacing="1">FRAUD</text>
+      <text x="220" y="168" text-anchor="middle" font-family="Arial" font-size="10" fill="#6f6960" letter-spacing="1.5">THREE CONDITIONS</text>
+      <text x="128" y="104" text-anchor="end" font-family="Arial" font-size="14" font-weight="800" fill="${ORANGE}" letter-spacing=".5">PRESSURE</text>
+      <text x="129" y="120" text-anchor="end" font-family="Arial" font-size="9.5" fill="#7a7368">the motive</text>
+      <text x="312" y="104" text-anchor="start" font-family="Arial" font-size="14" font-weight="800" fill="#c98a12" letter-spacing=".5">OPPORTUNITY</text>
+      <text x="311" y="120" text-anchor="start" font-family="Arial" font-size="9.5" fill="#7a7368">the open door</text>
+      <text x="220" y="210" text-anchor="middle" font-family="Arial" font-size="14" font-weight="800" fill="${TEAL}" letter-spacing=".5">RATIONALIZATION</text>
+    </svg>
+    <div class="trirow">
+      <div class="trb" style="background:var(--peach);border-top:3px solid ${ORANGE}"><span class="th" style="color:${ORANGE}">Pressure / Incentive</span>Certify costs to unlock $113.65M in credits; ground-lease economics; 20% affordable set-aside; non-farebox revenue targets.</div>
+      <div class="trb" style="background:#fbf6e6;border-top:3px solid ${GOLD}"><span class="th" style="color:#c98a12">Opportunity</span>Multi-layer financing limits visibility; no concurrent Phase 2 audit; multi-tier subs; certifications rely on developer documents.</div>
+      <div class="trb" style="background:#eef4f4;border-top:3px solid ${TEAL}"><span class="th" style="color:${TEAL}">Rationalization</span>"It delivers a public benefit"; "the authority already validated costs"; "owner reps reviewed every pay app".</div>
+    </div></div>`;
+}
+function ICO(d){return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>';}
+function C_schemes(items){
+  return `<div style="margin-top:12px;"><div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#b64a1f;font-weight:800;margin-bottom:8px;">Six schemes an FRA is built to detect</div>
+  <div style="display:flex;gap:6px;">`+items.map((it,idx)=>{const col=idx%2===0?'#2c6f7e':'#d1632b';return `<div style="flex:1;background:#faf7f0;border-radius:6px;padding:9px 3px 8px;text-align:center;border-top:3px solid ${col};">
+    <div style="width:32px;height:32px;margin:0 auto 6px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;">${it.icon}</div>
+    <div style="font-size:8px;font-weight:700;color:#14343f;line-height:1.15;">${it.label}</div></div>`;}).join('')+`</div></div>`;
+}
+function C_payoff(){
+  return `<div style="margin-top:12px;background:#faf7f0;border-radius:8px;padding:14px 16px 12px;">
+    <div style="font-size:11px;font-weight:800;color:#14343f;">The Measurable Payoff of Proactive Controls</div>
+    <div style="font-size:8.8px;color:#4f473d;margin:2px 0 12px;">Median fraud loss, organizations with vs. without anti-fraud controls.</div>
+    <div style="display:flex;align-items:flex-end;gap:30px;height:92px;padding:0 20px;border-bottom:2px solid #ddd6c6;">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">
+        <div style="font-size:11px;font-weight:800;color:#a83e26;margin-bottom:4px;">$250K</div>
+        <div style="width:62%;height:86%;background:linear-gradient(180deg,#c14a2c,#a83e26);border-radius:4px 4px 0 0;"></div></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">
+        <div style="font-size:11px;font-weight:800;color:#2c6f7e;margin-bottom:4px;">~$125K</div>
+        <div style="width:62%;height:43%;background:linear-gradient(180deg,#3f8391,#2c6f7e);border-radius:4px 4px 0 0;"></div></div>
+    </div>
+    <div style="display:flex;gap:30px;margin-top:7px;padding:0 20px;">
+      <div style="flex:1;text-align:center;font-size:8.4px;font-weight:700;color:#14343f;">Without Anti-Fraud Controls</div>
+      <div style="flex:1;text-align:center;font-size:8.4px;font-weight:700;color:#14343f;">With Proactive Controls</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:11px;">
+      <div style="flex:1;background:#fdf1e6;border-left:3px solid #d1632b;border-radius:0 4px 4px 0;padding:7px 9px;font-size:8.8px;line-height:1.35;color:#201c15;"><b style="color:#b64a1f;">50% lower losses</b> where proactive anti-fraud controls are in place.</div>
+      <div style="flex:1;background:#eef4f4;border-left:3px solid #2c6f7e;border-radius:0 4px 4px 0;padding:7px 9px;font-size:8.8px;line-height:1.35;color:#201c15;"><b style="color:#1f5966;">Detected sooner</b>, shrinking the 12-month average exposure window.</div>
+    </div>
+    <div style="font-size:8.2px;color:#57514a;font-style:italic;margin-top:8px;">Source: ACFE Occupational Fraud 2024: A Report to the Nations.</div>
+  </div>`;
+}
+function C_site(){
+  let w1='';for(let r=0;r<3;r++)for(let k=0;k<5;k++){const x=56+k*30,y=110+r*17;w1+=`<rect x="${x}" y="${y}" width="20" height="10" rx="1.5" fill="#bfe0e6"/>`;}
+  let w2='';for(let r=0;r<5;r++)for(let k=0;k<3;k++){const x=264+k*34,y=66+r*17;w2+=`<rect x="${x}" y="${y}" width="24" height="10" rx="1.5" fill="#ffd9bf"/>`;}
+  return `<svg viewBox="0 0 430 168" width="100%" style="display:block;margin:12px auto 2px;">
+    <line x1="30" y1="158" x2="405" y2="158" stroke="#ddd6c6" stroke-width="2"/>
+    <rect x="46" y="96" width="168" height="62" rx="2" fill="#2c6f7e"/>
+    <rect x="46" y="96" width="168" height="9" fill="#1f5966"/>
+    ${w1}
+    <circle cx="206" cy="90" r="12" fill="#e8a11f"/>
+    <path d="M200 90l4 4 7-8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="252" y="52" width="122" height="106" rx="2" fill="#d1632b"/>
+    <rect x="252" y="52" width="122" height="9" fill="#b64a1f"/>
+    ${w2}
+    <line x1="392" y1="158" x2="392" y2="26" stroke="#14343f" stroke-width="3"/>
+    <line x1="360" y1="30" x2="412" y2="30" stroke="#14343f" stroke-width="3"/>
+    <line x1="376" y1="26" x2="392" y2="26" stroke="#14343f" stroke-width="3"/>
+    <rect x="372" y="30" width="8" height="7" fill="#14343f"/>
+    <line x1="366" y1="30" x2="366" y2="48" stroke="#14343f" stroke-width="1.6"/>
+    <rect x="360" y="48" width="12" height="8" rx="1" fill="#e8a11f"/>
+    <circle cx="392" cy="26" r="3" fill="#d1632b"/>
+  </svg>
+  <div style="display:flex;gap:10px;margin-top:2px;">
+    <div style="flex:1;border-top:3px solid #2c6f7e;background:#eef4f4;padding:7px 9px;border-radius:0 0 4px 4px;">
+      <div style="font-size:8.2px;letter-spacing:.05em;color:#1f5966;font-weight:800;">PHASE 1 · COMPLETE</div>
+      <div style="font-size:8.8px;color:#201d17;margin-top:2px;line-height:1.3;">Health &amp; wellness center, about $200M, opened April 2026, $113.65M State tax credit.</div></div>
+    <div style="flex:1;border-top:3px solid #d1632b;background:#fdf1e6;padding:7px 9px;border-radius:0 0 4px 4px;">
+      <div style="font-size:8.2px;letter-spacing:.05em;color:#b64a1f;font-weight:800;">PHASE 2 · UNDER CONSTRUCTION</div>
+      <div style="font-size:8.8px;color:#201d17;margin-top:2px;line-height:1.3;">517,000 SF mixed-use, 245 units, 20% affordable, active build.</div></div>
+  </div>`;
+}
+function C_stack(){
+  const rows=[
+   {n:'1',c:'#14343f',t:'Public Agency Ground Lessor',d:'Owns the land and enforces 99-year ground-lease terms and audit rights.'},
+   {n:'2',c:'#1f5966',t:'Private Developer / Lessee',d:'Controls construction costs and pay applications, and self-reports eligible costs.'},
+   {n:'3',c:'#2c6f7e',t:'Healthcare Anchor Tenant',d:'Drives build-out scope and tenant-improvement cost allocations.'},
+   {n:'4',c:'#d1632b',t:'State Tax-Credit Financing Body',d:'Requires certified eligible costs to release $113.65M in credits.'},
+   {n:'5',c:'#a83e26',t:'Affordable-Housing Compliance',d:'Adds set-aside reporting and cost-allocation obligations.'}];
+  return `<div style="margin-top:10px;"><div style="font-size:10.5px;font-weight:800;color:#14343f;">Five accountability layers, five chances for cost divergence</div>
+  <div style="font-size:8.8px;color:#4f473d;margin:2px 0 9px;">Each party adds its own reporting requirements and a gap between stated and actual cost.</div>`
+  +rows.map(r=>`<div style="display:flex;align-items:stretch;margin-bottom:6px;border-radius:5px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.06);">
+    <div style="width:32px;flex:0 0 32px;background:${r.c};color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;">${r.n}</div>
+    <div style="flex:1;background:#faf7f0;padding:6px 10px;">
+      <div style="font-size:9.8px;font-weight:800;color:#14343f;line-height:1.2;">${r.t}</div>
+      <div style="font-size:8.5px;color:#4f473d;margin-top:1px;line-height:1.25;">${r.d}</div></div></div>`).join('')+`</div>`;
+}
+function C_decay(){
+  const pts=[[50,60],[122,49],[194,41],[266,87],[338,115],[405,141]];
+  const line='M '+pts.map(p=>p[0]+' '+p[1]).join(' L ');
+  const area='M 50 150 L '+pts.map(p=>p[0]+' '+p[1]).join(' L ')+' L 405 150 Z';
+  const xl=['Pre-Dev','Procure','Active Build','Cost Cert','Closeout','Post-Reten.'];
+  let xt='';pts.forEach((p,i)=>{xt+=`<text x="${p[0]}" y="166" text-anchor="middle" font-family="Arial" font-size="8" fill="#4f473d">${xl[i]}</text>`;});
+  let dots='';pts.forEach((p,i)=>{const c=i<=2?'#2c6f7e':(i===3?'#d1632b':'#a83e26');dots+=`<circle cx="${p[0]}" cy="${p[1]}" r="3.4" fill="#fff" stroke="${c}" stroke-width="2.4"/>`;});
+  return `<div style="margin-top:12px;background:#faf7f0;border-radius:8px;padding:13px 14px 8px;">
+    <div style="font-size:11px;font-weight:800;color:#14343f;">Your Leverage to Recover Costs Declines With Time</div>
+    <div style="font-size:8.8px;color:#4f473d;margin:2px 0 2px;">Ability to dispute charges, demand records, and enforce audit rights, by project phase.</div>
+    <svg viewBox="0 0 430 175" width="100%" style="display:block;">
+      <defs><linearGradient id="levG" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#2c6f7e" stop-opacity=".35"/><stop offset="0.55" stop-color="#d1632b" stop-opacity=".28"/><stop offset="1" stop-color="#a83e26" stop-opacity=".30"/></linearGradient>
+        <linearGradient id="lineG" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#2c6f7e"/><stop offset="0.6" stop-color="#d1632b"/><stop offset="1" stop-color="#a83e26"/></linearGradient></defs>
+      <line x1="40" y1="150" x2="412" y2="150" stroke="#ddd6c6" stroke-width="1.5"/>
+      <path d="${area}" fill="url(#levG)"/>
+      <path d="${line}" fill="none" stroke="url(#lineG)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      ${dots}${xt}
+      <line x1="194" y1="41" x2="194" y2="22" stroke="#2c6f7e" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <rect x="150" y="8" width="88" height="15" rx="7.5" fill="#2c6f7e"/>
+      <text x="194" y="18.6" text-anchor="middle" font-family="Arial" font-size="8.3" font-weight="800" fill="#fff">◄ AUDIT NOW</text>
+      <line x1="338" y1="150" x2="338" y2="62" stroke="#a83e26" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <text x="334" y="60" text-anchor="end" font-family="Arial" font-size="7.6" fill="#a83e26" font-weight="700">retainage released</text>
+      <text x="14" y="92" text-anchor="middle" font-family="Arial" font-size="8" fill="#14343f" font-weight="bold" transform="rotate(-90 14 92)">LEVERAGE</text>
+    </svg>
+  </div>`;
+}
+function H(t){return `<div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#b64a1f;font-weight:800;margin:12px 0 8px;">${t}</div>`;}
+function CO(o){return `<div class="callout${o.navy?' navy':''}"><span class="ch">${o.h}</span>${o.t}</div>`;}
+
+/* ---------- pages ---------- */
+const FA='Complimentary Fraud Risk Assessment';
+const FB='Fraud Risk Assessment · Transit-Oriented Development (Sample)';
+const P=[
+ {type:'cover'},
+ {type:'toc'},
+
+ {kick:'Fraud Risk Assessment · Construction | Capital Projects | Contract Compliance',
+  ttl:'Is Fraud, Waste or Abuse Hiding in Your Construction Project?',
+  body:['<b>The construction industry ranks #4 globally for median fraud loss per case, and most schemes go undetected for 12 or more months.</b>',
+   'Construction projects are uniquely vulnerable to occupational fraud. Decentralized operations, complex subcontracting, and contractor self-reporting create fertile ground for bid rigging, kickbacks, billing schemes, ghost labor, change order inflation, and lien fraud, quietly draining budgets and exposing owners to significant financial and legal risk.',
+   'A project-specific <b>Fraud Risk Assessment (FRA)</b> is the single most effective tool to identify, quantify, and mitigate these risks before they become losses.'],
+  info:()=>C_schemes([
+    {icon:ICO('<path d="m14.5 12.5-8 8a2.12 2.12 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/>'),label:'Bid Rigging'},
+    {icon:ICO('<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>'),label:'Kickbacks'},
+    {icon:ICO('<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>'),label:'Billing Fraud'},
+    {icon:ICO('<path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"/>'),label:'Ghost Labor'},
+    {icon:ICO('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>'),label:'Change Orders'},
+    {icon:ICO('<path d="M5 22h14"/><path d="M19.27 13.73A2.5 2.5 0 0 0 17.5 13h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1.5c0-.66-.26-1.3-.73-1.77Z"/><path d="M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 2 1 2 1 3.5V13"/>'),label:'Lien Fraud'}]),
+  callout:{h:'Why it matters',t:'An FRA turns fraud from a surprise you absorb into a risk you manage, before it reaches your bottom line.'},
+  foot:FA},
+
+ {kick:'The Fraud Reality in Construction', ttl:'The Numbers Behind the Risk',
+  comp:()=>C_stats([
+    [{num:'$250K',color:TEAL,label:'Median Loss Per Case'},{num:'52%',color:ORANGE,label:'Cases Involve Corruption'},{num:'38%',color:TEAL,label:'Involve Billing Fraud'},{num:'12 Mo.',color:RUST,label:'Avg. Before Detection'}],
+    [{num:'12 Mo.',color:TEAL,label:'Detection Gap',s:'Avg. time fraud goes undetected'},{num:'43%',color:ORANGE,label:'Tip Detection',s:'Of frauds detected through tips'},{num:'5%',color:TEAL,label:'Revenue Impact',s:'Annual revenue lost to fraud'}]
+  ]),
+  body2:['Decentralized operations and contractor self-reporting mean losses accumulate for a year on average before anyone notices. Tips, not controls, catch the largest share, which is exactly why a structured assessment matters.'],
+  info:()=>H('How fraud actually surfaces')+C_cols3([
+    {h:'Tips are the #1 source',p:'43% of frauds are first surfaced by a tip, more than any control, which turns employees and subcontractors into early-warning sensors.'},
+    {h:'The detection lag',p:'The typical scheme runs about 12 months before it is discovered, and every month of delay compounds the eventual loss.'},
+    {h:'Why an assessment matters',p:'Because controls miss most schemes on their own, a structured FRA points scarce audit attention at the highest-risk areas first.'}]),
+  src:'Source: ACFE Occupational Fraud 2024: A Report to the Nations.',
+  foot:FA},
+
+ {kick:'Construction Fraud Category Frequency', ttl:'Where the Schemes Cluster',
+  comp:()=>C_hbars([
+    {l:'Corruption / Kickbacks',v:52,c:ORANGE},{l:'Billing Fraud Schemes',v:38,c:ORANGE},
+    {l:'Expense Reimbursement',v:25,c:TEAL},{l:'Payroll / Ghost Labor',v:23,c:TEAL},
+    {l:'Non-Cash Misappropriation',v:21,c:TEALL},{l:'Change Order Inflation',v:19,c:TEALL}]),
+  body2:['Corruption and billing schemes dominate construction fraud, together accounting for the largest share of losses. These are precisely the areas a project-specific FRA is built to target.'],
+  info:()=>H('Red flags these schemes leave behind')+C_grid([
+    {h:'Corruption and kickback signals',p:'Repeat sole-source awards, bids clustering just below approval thresholds, and unusually close vendor relationships.'},
+    {h:'Billing scheme signals',p:'Round-dollar invoices, duplicate invoice numbers, front-loaded schedules of values, and billings that outpace real progress.'}])
+    +`<div class="src">Indicators drawn from the IRS Construction Industry ATG (Pub. 5522) and the Construction Auditors Manual.</div>`,
+  src:'Source: ACFE Occupational Fraud 2024: A Report to the Nations.',
+  foot:FA},
+
+ {kick:'Fraud Risk Exists at Every Phase', ttl:'The Construction Fraud Lifecycle',
+  body:['Risk is not concentrated in one place. It moves with the project, from the first bid to the final payment.'],
+  comp:()=>C_funnel([
+    {c:'#14343f',t:'Pre-Bid &<br>Bidding',d:'Bid rigging · Collusion'},
+    {c:'#1f5966',t:'Design<br>Phase',d:'Spec manipulation'},
+    {c:'#2c6f7e',t:'Contract<br>Award',d:'Kickbacks'},
+    {c:'#3f8391',t:'On-Site<br>Work',d:'Ghost labor'},
+    {c:'#d1632b',t:'Change<br>Orders',d:'Cost inflation'},
+    {c:'#a83e26',t:'Closeout &<br>Payment',d:'Lien fraud'}]),
+  info:()=>H('Red flags to watch, phase by phase')+C_grid([
+    {h:'Bidding phase',p:'Near-identical unit pricing across competing bids, or a low bidder that withdraws late.'},
+    {h:'On-site work',p:'Labor hours that exceed the crew on site, or equipment billed while sitting idle.'},
+    {h:'Change orders',p:'Work already inside the base contract scope, or margins above the original bid.'},
+    {h:'Closeout',p:'Missing lien waivers, or retainage released before a final cost reconciliation.'}]),
+  callout:{h:'A moving target',t:'Because exposure shifts phase by phase, the assessment maps risk across the whole lifecycle, not just the current stage.'},
+  src:'Sources: Construction Auditors Manual, Ch. 19 & 20; ACFE Fraud Examiners Manual; IRS Construction ATG (Pub. 5522); PMI PMBOK Guide, 8th Ed.',
+  foot:FA},
+
+ {kick:'What Is a Project-Specific FRA?', ttl:'A Structured, Evidence-Based Process',
+  body:['An <b>FRA</b> is a structured process that identifies, scores, and prioritizes fraud risks specific to your project, tailored to your contract type, delivery method, funding source, and lifecycle phase. It produces a <b>Fraud Risk Register</b>: a living document updated as your project evolves, directing audit resources where risk is highest.'],
+  comp:()=>C_methods([
+    {n:'1',c:TEAL,t:'Identify',d:'Fraud Risks'},{n:'2',c:TEAL,t:'Score',d:'Likelihood & Impact'},
+    {n:'3',c:TEAL,t:'Evaluate',d:'Controls'},{n:'4',c:ORANGE,t:'Data Analytics',d:'Testing'},
+    {n:'5',c:ORANGE,t:'Report',d:'& Monitor'}]),
+  info:()=>H('What your FRA delivers')+C_cols3([
+    {h:'Fraud Risk Register',p:'Every identified risk scored by likelihood and impact, then ranked so the biggest exposures rise to the top.'},
+    {h:'Risk Heat Map',p:'A single-page visual showing exactly where risk concentrates across the project.'},
+    {h:'Phased Audit Plan',p:'Procedures and hours mapped to each phase and calibrated to your contract value.'}]),
+  callout:{h:'The 5-step FRA methodology',t:'Grounded in the ACFE Fraud Risk Assessment Framework, AICPA AU-C 240, IRS ATG Pub. 5522, PMI PMBOK, and the COSO ERM Framework.'},
+  foot:FA},
+
+ {kick:'Why This Matters for Your Project', ttl:'Three Reasons Owners Commission an FRA',
+  comp:()=>C_cols3([
+    {h:'Protect Your Budget',p:'Change order inflation, overbilling, and ghost labor directly inflate project costs. The ACFE estimates 5% of annual revenue is lost to fraud.'},
+    {h:'Strengthen Oversight',p:'An FRA identifies control gaps before they are exploited. Organizations with proactive anti-fraud controls experience 50% lower losses (ACFE 2024).'},
+    {h:'Satisfy Fiduciary Duties',p:'Owners, lenders, bond trustees, and grantors rely on documented fraud risk management for contractual, regulatory, and fiduciary compliance.'}]),
+  body2:['For an owner or executive, the value is concrete: fewer surprises, cleaner audits, and a documented basis for the trust placed in contractors.'],
+  info:()=>C_payoff(),
+  foot:FA},
+
+ {kick:'Authoritative Standards Driving the FRA', ttl:'Grounded in Recognized Authority',
+  comp:()=>C_grid([
+    {h:'ACFE · Assoc. of Certified Fraud Examiners',p:'The world’s leading anti-fraud body. The CFE credential and ACFE FRA Framework drive scheme identification, risk scoring, and data analytics.'},
+    {h:'Construction Auditors Manual',p:'A Practical Guide for CCA. Defines fieldwork and reporting practice; the FRA operationalizes its mandatory risk assessment requirement.'},
+    {h:'IRS · Construction ATG (Pub. 5522)',p:'Documents industry audit techniques, fraud indicators, billing anomalies, and cash-flow red flags used in every FRA.'},
+    {h:'AICPA · AU-C Section 240',p:'The auditing standard for fraud in financial engagements. Provides the evaluative framework for assessing fraud risk factors.'},
+    {h:'PMI · PMBOK Guide, 8th Ed.',p:'Maps fraud risks phase by phase from initiation through closeout, enabling targeted phase-specific controls.'},
+    {h:'COSO · ERM Framework',p:'Underpins the risk scoring methodology, probability-impact matrices, and control environment evaluation.'}]),
+  callout:{navy:true,h:'Why grounding in standards matters',t:'Because every finding traces back to ACFE, AICPA, IRS, PMI, COSO, and the Construction Auditors Manual, the assessment is defensible, repeatable, and credible to the lenders, boards, and grantors who rely on it.'},
+  foot:FA},
+
+ {type:'divider',
+  kick:'Part Two · A Real FRA in Action',
+  ttl:'Northeastern U.S. Transit Redevelopment',
+  sub:'Transit-Oriented Development / Mixed-Use · Phase 2 Under Construction · Northeastern United States · Names and location redacted (sample)',
+  rating:'HIGH',
+  cards:[{h:'Project Owner / Lessor',v:'Redacted · Sample'},{h:'Developer / Lessee',v:'Redacted · Sample'},{h:'Contract Structure',v:'99-Year Ground Lease & State Tax Credits'},{h:'Total Investment (Est.)',v:'~$350M+ (Both Phases)'}],
+  foot:FB},
+
+ {kick:'Section 1 · Executive Summary', ttl:'A High-Risk, High-Visibility Engagement',
+  body:['A landmark transit-oriented development on a 12.4-acre parcel adjacent to a major Northeastern U.S. commuter rail station. Phase 1, a $200M health and wellness center, opened April 2026 with $113.65M in State tax credits. Phase 2, a 517,000 SF mixed-use residential and retail building (245 units, 20% affordable), is under active construction.',
+   'The financing structure combines a ground lease, State tax credits, affordable-housing set-asides, and private capital, creating multiple layers of cost accountability and compliance risk. <b>Overall fraud risk for Phase 2 is rated HIGH.</b>'],
+  comp:()=>C_stats([[
+    {num:'~$350M',color:TEAL,label:'Est. Total Investment'},{num:'$113.65M',color:ORANGE,label:'State Tax Credit Awarded'},{num:'759K SF',color:TEAL,label:'Total Built Area'},{num:'HIGH',color:RUST,label:'Overall Fraud Risk'},{num:'6',color:TEAL,label:'Phase Audit Program'}]]),
+  info:()=>C_site(),
+  foot:FB},
+
+ {kick:'Section 2 · Project Background & Scope', ttl:'Why the Structure Elevates Risk',
+  body:['Unlike a single owner-to-contractor relationship, this project layers five parties: a public agency ground lessor, a private developer and lessee, a major healthcare anchor tenant, a State economic development financing body, and affordable-housing compliance obligations. Each layer adds distinct reporting requirements and potential divergence between stated and actual costs.'],
+  info:()=>C_stack(),
+  callout:{h:'State Tax Credit Program · Audit Risk Trigger',t:'The $113.65M credit requires the developer to demonstrate eligible costs reach defined thresholds, creating strong incentives to overstate eligible costs, misallocate non-eligible costs, and inflate developer fees. This is a documented, high-risk area in tax-credit-financed construction.'},
+  foot:FB},
+
+ {kick:'Section 3 · FRA Framework & Standards', ttl:'The Fraud Triangle, Applied',
+  body:['The fraud triangle, pressure, opportunity, and rationalization, provides the analytical lens for evaluating fraud risk on this engagement.'],
+  comp:()=>C_triangle(),
+  foot:FB},
+
+ {kick:'Section 5 · Risk Identification & Scoring', ttl:'Fraud Risk Register',
+  body:['Ten fraud risks scored on a 5x5 likelihood-by-impact matrix (score = likelihood × impact). Scores of 12 to 25 fall in the HIGH priority zone requiring immediate audit procedures.'],
+  comp:()=>C_table({head:['#','Risk Area','L','I','Score','Rating'],w:['34px','','24px','24px','44px','78px'],scoreCol:4,rateCol:5,rows:[
+    ['R-01','State Tax Credit Cost Certification','4','5','20','Critical'],
+    ['R-02','Change Order Inflation, Phase 2','4','5','20','Critical'],
+    ['R-06','Cost Allocation Between Funding Streams','4','4','16','Critical'],
+    ['R-03','Subcontractor Bid Rigging / Price Inflation','3','5','15','High'],
+    ['R-08','Ground Lease Audit Rights Gap','3','5','15','High'],
+    ['R-04','Affordable Housing Compliance Misreporting','3','4','12','High'],
+    ['R-05','Overbilling / Percentage-Complete Manipulation','3','4','12','High'],
+    ['R-07','Kickbacks / Corruption in Procurement','3','4','12','High'],
+    ['R-10','Station Improvement Cost Shifting','3','3','9','Med-High'],
+    ['R-09','Lien / Retainage Manipulation','2','4','8','Med-High']]}),
+  foot:FB},
+
+ {kick:'Section 5.1 · Fraud Risk Heat Map', ttl:'Likelihood × Impact',
+  body:['Each identified risk plotted by likelihood (vertical) and impact (horizontal). Cells shade from teal (less risk) toward orange and red (more risk); risks in the orange zones require priority audit procedures.'],
+  comp:()=>C_heat(),
+  src:'Scoring adapted from Construction Auditors Manual Figure 20.4, Probability-Impact Scoring Matrix (PMI and ACFE frameworks).',
+  foot:FB},
+
+ {kick:'Section 6 · Control Environment Assessment', ttl:'Where the Controls Fall Short',
+  comp:()=>C_table({head:['Control Area','Present?','Adequacy','Gap / Risk'],w:['','','78px',''],rateCol:2,rows:[
+    ['Tax Credit Cost Certification','Yes, self-reported','Medium','Independent line-item audit not routinely required'],
+    ['Ground Lease Oversight','Partial','Low','Owner may lack enforceable audit rights over developer costs'],
+    ['Pay Application Review','Yes, G702/G703','Medium','Does not substitute for cost-element-level verification'],
+    ['Affordable Housing Monitoring','Yes','Medium','Verifies units, not construction cost allocation'],
+    ['Change Order Controls','Partial','Low','No scope verification or unit-cost benchmarking'],
+    ['Independent Project Audit','Not Present','Critical Gap','No independent CCA-level program for active Phase 2']]}),
+  info:()=>H('Control environment at a glance')+C_stats([[
+    {num:'6',color:TEAL,label:'Control Areas Reviewed'},{num:'3',color:ORANGE,label:'Rated Low or Critical'},{num:'1',color:RUST,label:'Critical Gap'}]]),
+  callout:{h:'Most significant control gap · Absence of an independent audit',t:'No independent construction audit program exists during active Phase 2 construction, the highest-risk phase. The best time to implement an audit program is now, concurrent with active billing cycles.'},
+  foot:FB},
+
+ {kick:'Section 7 · Financial Exposure Estimates', ttl:'Illustrative Exposure Ranges',
+  body:['Illustrative ranges based on ACFE benchmarks (median fraud loss of $250K per incident; 2% to 8% of contract value). These are not allegations that losses have occurred.'],
+  comp:()=>C_table({head:['Risk Area','Est. Exposure','Level'],w:['','120px','78px'],rateCol:2,rows:[
+    ['State Tax Credit Cost Overstatement (R-01)','$2.0M to $11.4M','Critical'],
+    ['Change Order Inflation, Phase 2 (R-02)','$1.5M to $6.0M','Critical'],
+    ['Cost Allocation Mischarging (R-06)','$1.0M to $5.0M','Critical'],
+    ['Subcontractor Bid Rigging (R-03)','$500K to $3.5M','High'],
+    ['Affordable Housing Misreporting (R-04)','$250K to $1.5M','High'],
+    ['Overbilling / Draw Acceleration (R-05)','$500K to $2.5M','High'],
+    ['Kickbacks / Corruption (R-07)','$250K to $2.0M','High']]}),
+  info:()=>H('Illustrative range at a glance')+C_stats([[
+    {num:'$6.1M',color:TEAL,label:'Low Scenario'},{num:'$32.4M',color:RUST,label:'High Scenario'},{num:'$250K',color:ORANGE,label:'ACFE Median / Case'}]]),
+  callout:{h:'Total illustrative exposure range · $6.1M to $32.4M',t:'A range across scenarios, not additive. An unaudited project may sustain losses within this range; a professional project audit can reduce them.'},
+  foot:FB},
+
+ {kick:'Section 9 · A Critical Distinction', ttl:'Owner’s Rep vs. Independent Auditor',
+  body:['An owner’s representative and an independent construction auditor perform fundamentally different, non-interchangeable roles.'],
+  comp:()=>C_twocol(
+    {c:TEAL,h:'Owner’s Representative (OPM)',items:['Acts as the developer’s agent during construction','Focuses on schedule, quality, and coordination','Reviews pay applications for completion consistency','Reports to developer or owner, not an independent authority','Does not independently verify cost records or payroll','May itself be a source of fraud risk (collusion cases)']},
+    {c:ORANGE,h:'Independent Construction Auditor (CCA)',items:['Reports independently to the project owner','Verifies actual costs against amounts billed','Tests change orders against original contract scope','Identifies related-party transactions vs. market pricing','Verifies credit-eligible cost classifications','Provides a deterrent effect that reduces opportunity']}),
+  callout:{h:'The independence gap, and why it matters',t:'An owner’s representative is paid within the project and reports to it, so an OPM cannot supply the independent verification an owner needs. Documented cases exist where an owner’s representative colluded in the very overbilling they were retained to catch. An independent construction auditor reports only to the owner, and that independence is what creates the deterrent effect.'},
+  foot:FB},
+
+ {kick:'Section 9B · Critical Audit Timing Advisory', ttl:'The Audit Window Is Open Now',
+  comp:()=>C_funnel([
+    {c:'#14343f',t:'1 ·<br>Pre-Dev',d:'Credit · Fee setup'},
+    {c:'#1f5966',t:'2 ·<br>Procure',d:'Bid · Sub select'},
+    {c:'#2c6f7e',t:'3 · Active<br>Build',d:'◄ AUDIT NOW'},
+    {c:'#d1632b',t:'4 · Cost<br>Cert',d:'Claw-back risk'},
+    {c:'#a83e26',t:'5 ·<br>Closeout',d:'Retainage'}]),
+  info:()=>C_decay(),
+  callout:{navy:true,h:'The best time to audit is now. The second-best is before retainage is released.',t:'The most effective audit runs concurrently with monthly billing, identifying risk triggers early while there is still time to dispute unsupported charges. Once retainage is released and tax-credit costs are certified, audit rights and access to supporting documentation diminish significantly.'},
+  foot:FB},
+
+ {kick:'Section 11 · Recommended Audit Plan', ttl:'Estimated Hours by Phase',
+  comp:()=>C_hours([
+    {t:'25',v:25,c:'#14343f',l:'Ph.1 Mobilize'},{t:'50-75',v:75,c:'#2c6f7e',l:'Ph.2 Risk Review'},
+    {t:'25-38/mo',v:38,c:'#3f8391',l:'Ph.3 Pay Apps'},{t:'50-100',v:100,c:'#6ba3ad',l:'Ph.4 Change Orders'},
+    {t:'75-125',v:125,c:'#d1632b',l:'Ph.5 Tax Credit'},{t:'38-63',v:63,c:'#a83e26',l:'Ph.6 Closeout'}]),
+  info:()=>H('The engagement in numbers')+C_stats([[
+    {num:'25 hrs',color:NAVY,label:'Mobilization Minimum'},{num:'375–613',color:TEAL,label:'Full Program Hours'},{num:'6',color:ORANGE,label:'Audit Phases'}]]),
+  callout:{h:'Full-program estimate · 375 to 613 hours',t:'Phase 1 mobilization carries a standard 25-hour minimum; Phase 3 is an ongoing monthly cadence during active construction. Scope is calibrated to contract value, subcontractor count, and change order volume.'},
+  foot:FB},
+
+ {kick:'Section 13 · Overall Risk Dashboard', ttl:'Transit-Oriented Development · Risk Profile',
+  comp:()=>C_dash([
+    {l:'Tax Credit Cost Certification',s:20,r:'Critical'},
+    {l:'Change Order Inflation (Phase 2)',s:20,r:'Critical'},
+    {l:'Multi-Stream Cost Allocation Mischarging',s:16,r:'Critical'},
+    {l:'Control Environment: Independent Audit Absent',s:22,r:'Critical Gap'},
+    {l:'Related-Party Subcontractor / Bid Rigging',s:15,r:'High'},
+    {l:'Affordable Housing Compliance',s:12,r:'High'},
+    {l:'Overbilling / Percentage-Complete',s:12,r:'High'},
+    {l:'Kickbacks / Procurement Corruption',s:12,r:'High'},
+    {l:'Retainage / Lien Waiver Management',s:9,r:'Med-High'},
+    {l:'Station Improvement Cost Shifting',s:9,r:'Med-High'}]),
+  info:()=>H('The bottom line')+C_stats([[
+    {num:'7 of 10',color:RUST,label:'Risks High or Critical'},{num:'$6.1–32.4M',color:ORANGE,label:'Illustrative Exposure'},{num:'0',color:NAVY,label:'Independent Audits Active'}]]),
+  callout:{h:'Overall rating · HIGH · Total illustrative exposure $6.1M to $32.4M',t:'Seven risks rate High or Critical, compounded by the absence of an independent audit during the active construction phase.'},
+  foot:FB},
+
+ {kick:'Section 14 · Conclusions & Recommendations', ttl:'Six Priority Actions',
+  comp:()=>C_grid([
+    {h:'1 · Engage an independent audit now',p:'Phase 2 is under active construction. Begin monthly billing review, cost tracing, and change order audit at the next cycle.'},
+    {h:'2 · Pre-audit tax credit certification',p:'Independently verify eligible cost classifications and developer fees before submission to avoid claw-back exposure.'},
+    {h:'3 · Related-party subcontractor analysis',p:'Cross-reference subs and vendors against developer ownership records; benchmark pricing to market rates.'},
+    {h:'4 · Verify ground-lease audit rights',p:'Confirm enforceable audit rights over developer costs; if absent, negotiate an audit rights addendum immediately.'},
+    {h:'5 · Formal change order protocol',p:'Review all change orders above a materiality threshold for scope duplication and correct cost-pool allocation.'},
+    {h:'6 · Audit before retainage release',p:'If a concurrent audit is not feasible, complete a pre-closeout audit before retainage and cost certification.'}]),
+  callout:{navy:true,h:'The recommended first step',t:'Engage an independent audit at the next billing cycle, while Phase 2 is active and your leverage to recover costs is at its peak.'},
+  foot:FB},
+
+ {type:'cta'}
+];
+
+/* ---------- render ---------- */
+function pageHTML(p,idx){
+  const num=(idx||0)+1, total=P.length;
+  if(!p) return '<div style="width:100%;height:100%"></div>';
+  const tocBtn='<button class="tocbtn" onclick="event.stopPropagation();gotoTOC()" title="Back to Contents">☰ Contents</button>';
+  if(p.type==='toc'){
+    const one=[{t:'Is Fraud Hiding in Your Project?',s:1},{t:'The Numbers Behind the Risk',s:1},{t:'Where the Schemes Cluster',s:2},{t:'The Construction Fraud Lifecycle',s:2},{t:'The 5-Step FRA Methodology',s:3},{t:'Why Owners Commission an FRA',s:3},{t:'Grounded in Recognized Standards',s:4}];
+    const two=[{t:'Case Study Overview',s:4},{t:'Executive Summary',s:5},{t:'Project Background & Risk',s:5},{t:'The Fraud Triangle',s:6},{t:'Fraud Risk Register',s:6},{t:'Risk Heat Map',s:7},{t:'Control Environment',s:7},{t:'Financial Exposure',s:8},{t:"Owner's Rep vs. Auditor",s:8},{t:'Audit Timing & Retainage',s:9},{t:'Recommended Audit Plan',s:9},{t:'Overall Risk Dashboard',s:10},{t:'Conclusions & Priorities',s:10},{t:'Contact Craig',s:11}];
+    let n=0; const row=(it)=>{ n++; const nn=('0'+n).slice(-2); return `<a class="tocrow" onclick="event.stopPropagation();gotoSpread(${it.s})"><span class="tocn">${nn}</span><span class="toct">${it.t}</span><span class="tocc">&rsaquo;</span></a>`; };
+    return `<div class="pg">
+      <div class="kick">Fraud Risk Assessment · Educational Field Guide</div>
+      <h1 class="ttl">Contents</h1>
+      <div class="rule"></div>
+      <div class="tocwrap">
+        <div class="toccol"><div class="tocpart">Part One · The Fraud Reality</div>${one.map(row).join('')}</div>
+        <div class="toccol"><div class="tocpart">Part Two · Transit Project Sample</div>${two.map(row).join('')}</div>
+      </div>
+      <div class="foot"><span class="fl">Craig Mann, CCA, CCP, CFE, PMP</span><span class="fc">Tap any section to jump straight there</span><span class="fr">Page ${num} of ${total}</span></div></div>`;
+  }
+  if(p.type==='cover'){
+    return `<div class="cover"><div class="halo"></div><div class="halo2"></div><div class="cbar"></div>
+      <div class="chead"><div class="nm">CRAIG MANN - CCA, CCP, CFE, PMP</div>
+        <div class="cr">Certified Construction Auditor</div>
+        <div class="ad">Fraud Risk Assessment · An Educational Field Guide &amp; Sample</div></div>
+      <div class="cmid"><div class="keyw">Construction · Capital Projects · Contract Compliance</div>
+        <h1>Fraud Risk<br>Assessment</h1>
+        <div style="width:100%;height:2px;background:var(--gold);margin:18px 0 0;border-radius:2px;"></div>
+        <div class="lead">Protecting construction and capital projects from fraud, waste, and abuse, before it reaches your bottom line. Includes a real, redacted FRA in action, from published, publicly available data.</div>
+        <div class="keyw" style="margin-top:30px;margin-bottom:0;font-size:9px;letter-spacing:.05em;">The Fraud Reality &middot; 5-Step Methodology &middot; Sample Case Study</div></div>
+      <div class="cfoot">
+        <a href="https://forms.zohopublic.com/inthenumbers/form/ConstructionProjectFraudRiskAssessmentForm/formperma/haUXPOQv3wbKRLJLTY6BTqLZhceY6udx1I0wJMuSJ78" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:block;width:100%;box-sizing:border-box;text-align:center;text-decoration:none;padding:14px 18px;border-top:1px solid rgba(232,161,31,.55);border-bottom:1px solid rgba(232,161,31,.55);background:rgba(232,161,31,.09);">
+          <div style="font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:5px;">No Cost &middot; No Obligation</div>
+          <div style="font-family:Georgia,serif;font-style:italic;font-size:11.5px;color:#cdd9db;margin-bottom:6px;letter-spacing:.02em;">Click Here to:</div>
+          <div style="font-size:15px;font-weight:700;color:#fff;letter-spacing:.01em;">Claim Your Complimentary Project-Specific FRA</div>
+        </a></div></div>`;
+  }
+  if(p.type==='cta'){
+    return `<div class="cta"><div class="halo"></div>
+      <h2>Claim Your Complimentary Fraud Risk Assessment</h2>
+      <div class="mv" style="font-weight:bold;">Minimum Project Value of $20 million &middot; No cost &middot; No obligation</div>
+      <p>Project-tailored and grounded in the ACFE Fraud Risk Assessment Framework, IRS ATG, AICPA, PMI, and COSO standards, and the Construction Auditors Manual. The sample in these pages shows exactly what you receive: a scored risk register, heat map, control assessment, exposure estimates, and a phased audit plan sample for educational purposes.</p>
+      <div class="contact"><div style="display:flex;align-items:center;gap:13px;margin-bottom:6px;"><img src="data:image/jpeg;base64,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" alt="Craig Mann, CCA, CCP, CFE, PMP" style="width:66px;height:66px;border-radius:50%;object-fit:cover;object-position:center 22%;border:2px solid var(--gold);box-shadow:0 4px 14px rgba(0,0,0,.45);flex:0 0 auto;"><div><div class="nm">Craig Mann, CCA, CCP, CFE, PMP</div><div class="cr">Certified Construction Auditor</div></div></div>
+        <div class="row"><b>P</b> <a href="tel:+16093399141" onclick="event.stopPropagation()">(609) 339-9141</a></div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <a href="mailto:cmann@fraud-risk-assessments.com?subject=Fraud%20Risk%20Assessment%20Inquiry" onclick="event.stopPropagation()" style="flex:1;text-align:center;background:var(--orange);color:#fff;font-weight:bold;font-size:11.5px;padding:12px 8px;border-radius:5px;letter-spacing:.02em;text-decoration:none;">Email Craig &rarr;</a>
+          <a href="https://www.linkedin.com/in/craig-mann-0aa11628" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex:1;text-align:center;background:#0A66C2;color:#fff;font-weight:bold;font-size:11.5px;padding:12px 8px;border-radius:5px;letter-spacing:.02em;text-decoration:none;">Connect on LinkedIn</a>
+          <a href="https://forms.zohopublic.com/inthenumbers/form/ConstructionProjectFraudRiskAssessmentForm/formperma/haUXPOQv3wbKRLJLTY6BTqLZhceY6udx1I0wJMuSJ78" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex:1;text-align:center;background:#2c6f7e;color:#fff;font-weight:bold;font-size:11.5px;padding:12px 8px;border-radius:5px;letter-spacing:.02em;text-decoration:none;">Claim Your FRA Now</a>
+        </div></div>
+      <div style="text-align:center;margin-top:16px;position:relative;z-index:2;">
+        <div style="font-size:12.5px;font-weight:800;color:#fff;letter-spacing:.02em;">Craig Mann, CCA, CCP, CFE, PMP</div>
+        <div style="font-size:8.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-top:4px;">Fraud Risk Assessment · Educational Field Guide</div>
+        <div style="width:100%;height:2px;background:var(--gold);margin:10px 0 0;border-radius:2px;"></div></div>
+      <div class="disc"><b>DISCLAIMER:</b> The complimentary Fraud Risk Assessment described herein is provided for informational and educational purposes only. It is based on well-established industry standards and credible published reports including the ACFE Occupational Fraud 2024: A Report to the Nations; IRS Construction Industry ATG (Pub. 5522); AICPA AU-C Section 240; PMI PMBOK Guide (8th Ed.); the COSO ERM Framework; and the Construction Auditors Manual. Findings are preliminary and do not constitute legal or professional advice. Formal engagements require a written agreement.</div>
+      <div style="text-align:right;font-size:8px;color:#8ea3a7;margin-top:8px;position:relative;z-index:2;letter-spacing:.06em;">Page ${num} of ${total}</div></div>`;
+  }
+  if(p.type==='divider'){
+    return `<div class="pg" style="padding:0;">
+      ${tocBtn}
+      <div style="background:linear-gradient(160deg,#1a4250,#0c222a);color:#eef3f4;flex:1;display:flex;flex-direction:column;padding:34px 32px;position:relative;overflow:hidden;">
+        <div style="position:absolute;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(209,99,43,.28),transparent 70%);top:-90px;right:-80px;"></div>
+        <div style="position:relative;z-index:2;">
+          <div style="font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:bold;">${p.kick}</div>
+          <div style="height:4px;width:60px;background:var(--orange);margin:12px 0 16px;border-radius:2px;"></div>
+          <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--orange);margin-bottom:6px;">Fraud Risk Assessment · An Educational Case Study</div>
+          <h1 style="font-size:32px;margin:0;color:#fff;font-weight:800;line-height:1.08;">${p.ttl}</h1>
+          <div style="font-size:11px;color:#b9c9cd;margin-top:12px;line-height:1.5;max-width:400px;">${p.sub}</div>
+          <div style="display:inline-block;margin-top:18px;background:var(--orange);color:#fff;font-weight:800;font-size:13px;padding:9px 18px;border-radius:5px;letter-spacing:.04em;">OVERALL FRAUD RISK RATING: ${p.rating}</div>
+        </div>
+        <div style="display:flex;gap:9px;margin-top:auto;position:relative;z-index:2;">${p.cards.map(c=>
+          `<div style="flex:1;background:rgba(255,255,255,.06);border-left:3px solid var(--orange);border-radius:0 4px 4px 0;padding:9px 10px;">
+            <div style="font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:#9fb3b8;margin-bottom:5px;">${c.h}</div>
+            <div style="font-size:11px;color:#fff;font-weight:bold;line-height:1.25;">${c.v}</div></div>`).join('')}</div>
+      </div>
+      <div class="foot" style="padding:9px 32px 0;"><span class="fl">Craig Mann, CCA, CCP, CFE, PMP</span><span class="fc">${p.foot}</span><span class="fr">Page ${num} of ${total}</span></div></div>`;
+  }
+  let mid='';
+  if(p.body) p.body.forEach(b=> mid+=`<p>${b}</p>`);
+  if(p.comp) mid+=p.comp();
+  if(p.body2) p.body2.forEach(b=> mid+=`<p>${b}</p>`);
+  if(p.info) mid+=p.info();
+  if(p.src) mid+=`<div class="src">${p.src}</div>`;
+  if(p.callout){ const co=p.callout; mid+=`<div class="callout${co.navy?' navy':''}"><span class="ch">${co.h}</span>${co.t}</div>`; }
+  return `<div class="pg">
+    ${tocBtn}
+    <div class="kick">${p.kick}</div>
+    <h1 class="ttl">${p.ttl}</h1>
+    ${p.sub?`<div class="subttl">${p.sub}</div>`:''}
+    <div class="rule${(p.foot===FB)?' teal':''}"></div>
+    ${mid}
+    <div class="foot"><span class="fl">Craig Mann, CCA, CCP, CFE, PMP</span><span class="fc">${p.foot||''}</span><span class="fr">Page ${num} of ${total}</span></div></div>`;
+}
+
+/* ---------- engine ---------- */
+const pages=P, S=Math.ceil(pages.length/2);
+const L=document.getElementById('leftPage'),R=document.getElementById('rightPage');
+const flip=document.getElementById('flipper'),FF=document.getElementById('ff'),FBk=document.getElementById('fb');
+const prevBtn=document.getElementById('prev'),nextBtn=document.getElementById('next'),homeBtn=document.getElementById('home'),endBtn=document.getElementById('end');
+const counter=document.getElementById('counter'),bar=document.getElementById('bar');
+let s=0,busy=false,closed=true,curK=1; const PW=500;
+const bookEl=document.getElementById('book'), scaler=document.getElementById('scaler');
+function c(i){ return (i>=0&&i<pages.length)? pageHTML(pages[i],i) : '<div style="width:100%;height:100%"></div>'; }
+function fitTitles(){ document.querySelectorAll('#book .ttl').forEach(el=>{ if(!el.clientWidth) return; el.style.fontSize='22px'; let fs=22,g=0; while(el.scrollWidth>el.clientWidth+0.5 && fs>13 && g<40){ fs-=0.5; el.style.fontSize=fs+'px'; g++; } }); }
+const tocIdx=P.findIndex(p=>p&&p.type==='toc'), TOC_SPREAD=tocIdx>=0?Math.floor(tocIdx/2):0;
+function gotoSpread(n){ if(busy)return; if(n<0)n=0; if(n>S-1)n=S-1; bookEl.classList.remove('closed'); closed=false; s=n; renderStatic(); fit(); }
+function gotoTOC(){ gotoSpread(TOC_SPREAD); }
+function ui(){
+  prevBtn.disabled=closed;
+  homeBtn.disabled=closed;
+  endBtn.disabled=(!closed && s===S-1);
+  nextBtn.disabled=(!closed && s===S-1);
+  nextBtn.textContent=closed?'Open the book ›':'Next ›';
+  if(closed){ counter.textContent='Cover · click to open'; bar.style.width='0%'; }
+  else { counter.textContent = s===0?'Cover' : s===S-1?'Contact' : 'Spread '+s+' / '+(S-1); bar.style.width=(s/(S-1)*100)+'%'; }
+}
+function renderStatic(){ const alone=(2*s+1>=pages.length); L.innerHTML=c(2*s); R.innerHTML=c(2*s+1); bookEl.classList.toggle('single', alone&&!closed); fitTitles(); ui(); }
+function finish(cb){ let d=false; const e=()=>{ if(d)return; d=true; flip.removeEventListener('transitionend',e); cb(); };
+  flip.addEventListener('transitionend',e); setTimeout(e,1050); }
+function open(){ if(busy||!closed)return; busy=true;
+  L.innerHTML=c(0); R.innerHTML=c(1); bookEl.classList.remove('closed');
+  setTimeout(()=>{ closed=false; s=0; renderStatic(); busy=false; }, 880); }
+function close(){ if(busy||closed)return; busy=true; s=0; L.innerHTML=c(0); R.innerHTML=c(1);
+  bookEl.classList.add('closed');
+  setTimeout(()=>{ closed=true; renderStatic(); busy=false; }, 880); }
+function next(){ if(busy||closed||s>=S-1)return; busy=true;
+  if(2*(s+1)+1>=pages.length){ s++; renderStatic(); fit(); busy=false; return; }
+  FF.innerHTML=c(2*s+1)+'<div class="shine"></div>'; FBk.innerHTML=c(2*s+2)+'<div class="shine"></div>';
+  R.innerHTML=c(2*s+3);
+  flip.style.transformOrigin='left center'; flip.style.left=PW+'px'; flip.style.display='block'; flip.style.transform='rotateY(0deg)';
+  fitTitles(); void flip.offsetWidth; flip.classList.add('turning'); flip.style.transform='rotateY(-180deg)';
+  finish(()=>{ s++; renderStatic(); flip.style.display='none'; flip.classList.remove('turning'); busy=false; }); }
+function prev(){ if(busy||closed)return; if(s<=0){ close(); return; } busy=true;
+  if(2*s+1>=pages.length){ s--; renderStatic(); fit(); busy=false; return; }
+  FF.innerHTML=c(2*s)+'<div class="shine"></div>'; FBk.innerHTML=c(2*s-1)+'<div class="shine"></div>';
+  L.innerHTML=c(2*s-2);
+  flip.style.transformOrigin='right center'; flip.style.left='0px'; flip.style.display='block'; flip.style.transform='rotateY(0deg)';
+  fitTitles(); void flip.offsetWidth; flip.classList.add('turning'); flip.style.transform='rotateY(180deg)';
+  finish(()=>{ s--; renderStatic(); flip.style.display='none'; flip.classList.remove('turning'); busy=false; }); }
+function goNext(){ closed?open():next(); }
+function goPrev(){ if(!closed) prev(); }
+function gotoBack(){ if(busy||(!closed && s===S-1))return; bookEl.classList.remove('closed'); closed=false; s=S-1; renderStatic(); fit(); }
+nextBtn.onclick=goNext; prevBtn.onclick=goPrev; homeBtn.onclick=()=>{ if(!closed) close(); }; endBtn.onclick=gotoBack;
+document.addEventListener('keydown',e=>{ if(e.key==='ArrowRight')goNext(); if(e.key==='ArrowLeft')goPrev(); });
+bookEl.addEventListener('click',e=>{ if(busy)return; if(closed){ open(); return; } const r=e.currentTarget.getBoundingClientRect();
+  (e.clientX-r.left>r.width/2)?next():prev(); });
+function fit(){ const H=684;
+  const availW=window.innerWidth-40, availH=window.innerHeight-150;
+  let k=Math.min(availW/1000, availH/H); k=Math.min(k,2.4); if(k<0.1)k=0.1; curK=k;
+  scaler.style.transform='scale('+k+')'; scaler.style.width=(1000*k)+'px'; scaler.style.height=(H*k)+'px'; }
+window.addEventListener('resize',fit); fit(); renderStatic();
+
+/* -- view-only deterrents (JS layer) -- not foolproof, casual-attempt speed bumps only -- */
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('dragstart', e => e.preventDefault());
+document.addEventListener('selectstart', e => e.preventDefault());
+['copy','cut','paste'].forEach(evt => document.addEventListener(evt, e => e.preventDefault()));
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  const blockCombo = (e.ctrlKey || e.metaKey) && ['s','p','u','c','a','x'].includes(k);
+  const blockDevtools = e.key === 'F12' || ((e.ctrlKey||e.metaKey) && e.shiftKey && ['i','j','c','k'].includes(k));
+  if (blockCombo || blockDevtools) e.preventDefault();
+});
+
+/* Lightweight devtools-open heuristic: shows a dismissable notice, doesn't block viewing */
+(function(){
+  let warned = false;
+  function checkDevtools(){
+    const threshold = 160;
+    const widthGap = window.outerWidth - window.innerWidth;
+    const heightGap = window.outerHeight - window.innerHeight;
+    if ((widthGap > threshold || heightGap > threshold) && !warned) {
+      warned = true;
+      const bar = document.createElement('div');
+      bar.textContent = 'This content is for viewing only.';
+      bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#14343f;color:#fff;text-align:center;padding:8px;font-family:Arial,sans-serif;font-size:12px;z-index:99999;';
+      document.body.appendChild(bar);
+    }
+  }
+  setInterval(checkDevtools, 1500);
+})();
+</script>
+</body>
+</html>
